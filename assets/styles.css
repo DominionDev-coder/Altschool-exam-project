@@ -1,0 +1,70 @@
+/* ============================
+   GENERAL STYLING
+============================ */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #f0f0f0;
+}
+
+/* ============================
+   DARK MODE SUPPORT
+============================ */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #121212;
+    }
+
+    .calculator-container {
+        background: #1e1e1e;
+        box-shadow: 0 10px 25px rgba(255,255,255,0.1);
+    }
+
+    .display {
+        background: #2c2c2c;
+        color: #fff;
+    }
+
+    .number {
+        background: #333;
+        color: #fff;
+    }
+
+    .operator {
+        background: #ff8c42;
+        color: #fff;
+    }
+
+    .equal {
+        background: #2ec4b6;
+        color: #fff;
+    }
+}
+
+/* ============================
+   RESPONSIVE
+============================ */
+@media (max-width: 360px) {
+    .calculator-container {
+        width: 90%;
+    }
+
+    .btn {
+        padding: 15px;
+        font-size: 1.2rem;
+    }
+
+    .display {
+        font-size: 1.5rem;
+        height: 50px;
+    }
+}
