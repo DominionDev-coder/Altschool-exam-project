@@ -24,6 +24,7 @@ A simple, responsive calculator web application built with **HTML**, **CSS**, an
 
 ## 📐 Design Reference
 [Figma Design](https://www.figma.com/design/7sm61eN76smT5GPfy4K4TZ/),
+
 [Project Design Document](project_doc.md)
 
 ## 📌 Notes
