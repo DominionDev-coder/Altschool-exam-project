@@ -1,56 +1,120 @@
-/* ===============================
-   CALCULATOR LOGIC
-================================ */
+// ============================
+// VARIABLES
+// ============================
+let currentInput = "";
+let history = [];
+let historyIndex = -1;
 
 const display = document.getElementById("display");
-const buttons = document.querySelectorAll(".btn");
 
-let currentInput = "";
+// ============================
+// UPDATE DISPLAY
+// ============================
+function updateDisplay() {
+  display.value = currentInput || "0";
+}
 
-/* ===============================
-   BUTTON CLICK HANDLING
-================================ */
-buttons.forEach((button) => {
-  button.addEventListener("click", () => {
-    const value = button.dataset.value;
-
-    if (value === "C") {
-      clearDisplay();
-    } else if (value === "=") {
-      calculateResult();
-    } else {
-      appendValue(value);
-    }
-  });
-});
-
-/* ===============================
-   FUNCTIONS
-================================ */
-
-// Add value to display
-function appendValue(value) {
+// ============================
+// BUTTON HANDLERS
+// ============================
+function handleNumber(value) {
   currentInput += value;
-  display.value = currentInput;
+  updateDisplay();
 }
 
-// Clear everything
-function clearDisplay() {
+function handleOperator(operator) {
+  if (!currentInput) return;
+  const lastChar = currentInput[currentInput.length - 1];
+  if ("+-×÷%^−".includes(lastChar)) {
+    currentInput = currentInput.slice(0, -1) + operator;
+  } else {
+    currentInput += operator;
+  }
+  updateDisplay();
+}
+
+function handleClear() {
   currentInput = "";
-  display.value = "";
+  updateDisplay();
 }
 
-// Calculate expression
-function calculateResult() {
-  try {
-    // Replace symbols if needed
-    const expression = currentInput.replace(/×/g, "*").replace(/÷/g, "/");
-    const result = Function(`return ${expression}`)();
+function handleBackspace() {
+  currentInput = currentInput.slice(0, -1);
+  updateDisplay();
+}
 
-    display.value = result;
+function handleEqual() {
+  if (!currentInput) return;
+  try {
+    // Replace operators for JS eval
+    const sanitized = currentInput
+      .replace(/×/g, "*")
+      .replace(/÷/g, "/")
+      .replace(/−/g, "-")
+      .replace(/\^/g, "**");
+    const result = eval(sanitized);
+    const timestamp = new Date().toLocaleTimeString();
+    history.push({ expression: currentInput, result, time: timestamp });
     currentInput = result.toString();
-  } catch (error) {
-    display.value = "Error";
+    historyIndex = history.length;
+    updateDisplay();
+  } catch {
     currentInput = "";
+    display.value = "Error";
   }
 }
+
+function showHistory() {
+  alert("History coming soon!");
+}
+
+// ============================
+// BUTTON EVENT LISTENERS
+// ============================
+
+// Numbers
+document.querySelectorAll(".number").forEach(btn => {
+  btn.addEventListener("click", () => handleNumber(btn.textContent));
+});
+
+// Operators
+document.querySelectorAll(".operator").forEach(btn => {
+  btn.addEventListener("click", () => handleOperator(btn.textContent));
+});
+
+// Equal
+document.querySelector(".equal").addEventListener("click", handleEqual);
+
+// Clear
+document.querySelector(".clear").addEventListener("click", handleClear);
+
+// Backspace
+document.querySelector(".backspace").addEventListener("click", handleBackspace);
+
+// History
+document.querySelector(".history").addEventListener("click", showHistory);
+
+// ============================
+// KEYBOARD SUPPORT
+// ============================
+document.addEventListener("keydown", e => {
+  const key = e.key;
+
+  if (!isNaN(key) || key === ".") handleNumber(key);
+  else if (key === "Enter") handleEqual();
+  else if (key === "Escape") handleClear();
+  else if (["+", "-", "*", "/", "%", "^"].includes(key)) handleOperator(key);
+
+  // Arrow keys for history (placeholder)
+  else if (key === "ArrowUp") {
+    if (history.length === 0) return;
+    historyIndex = Math.max(0, historyIndex - 1);
+    currentInput = history[historyIndex].expression || "";
+    updateDisplay();
+  } else if (key === "ArrowDown") {
+    if (history.length === 0) return;
+    historyIndex = Math.min(history.length - 1, historyIndex + 1);
+    currentInput = history[historyIndex]?.expression || "";
+    updateDisplay();
+  }
+});
