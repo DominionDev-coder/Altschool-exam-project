@@ -1,120 +1,227 @@
-// ============================
-// VARIABLES
-// ============================
+/* =========================
+   ELEMENT REFERENCES
+========================= */
+const display = document.getElementById("display");
+const buttons = document.querySelectorAll(".btn");
+const clearBtn = document.querySelector(".clear");
+const equalBtn = document.querySelector(".equal");
+const backspaceBtn = document.querySelector(".backspace");
+const historyBtn = document.querySelector(".history");
+
+/* =========================
+   STATE
+========================= */
 let currentInput = "";
 let history = [];
 let historyIndex = -1;
+let historyOpen = false;
 
-const display = document.getElementById("display");
+/* =========================
+   HISTORY UI (DYNAMIC)
+========================= */
+const historyOverlay = document.createElement("div");
+historyOverlay.className = "history-overlay";
+historyOverlay.style.cssText = `
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
 
-// ============================
-// UPDATE DISPLAY
-// ============================
-function updateDisplay() {
-  display.value = currentInput || "0";
+const historyBox = document.createElement("div");
+historyBox.style.cssText = `
+  background: #111;
+  color: #fff;
+  width: min(90%, 420px);
+  max-height: 70vh;
+  border-radius: 16px;
+  padding: 16px;
+  overflow-y: auto;
+`;
+
+historyOverlay.appendChild(historyBox);
+document.body.appendChild(historyOverlay);
+
+/* =========================
+   HELPERS
+========================= */
+function updateDisplay(value) {
+  display.value = value || "0";
 }
 
-// ============================
-// BUTTON HANDLERS
-// ============================
-function handleNumber(value) {
-  currentInput += value;
-  updateDisplay();
+function normalizeExpression(exp) {
+  return exp
+    .replace(/×/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/−/g, "-")
+    .replace(/\^/g, "**")
+    .replace(/(\d+)%/g, "($1/100)");
 }
 
-function handleOperator(operator) {
-  if (!currentInput) return;
-  const lastChar = currentInput[currentInput.length - 1];
-  if ("+-×÷%^−".includes(lastChar)) {
-    currentInput = currentInput.slice(0, -1) + operator;
-  } else {
-    currentInput += operator;
-  }
-  updateDisplay();
-}
-
-function handleClear() {
-  currentInput = "";
-  updateDisplay();
-}
-
-function handleBackspace() {
-  currentInput = currentInput.slice(0, -1);
-  updateDisplay();
-}
-
-function handleEqual() {
-  if (!currentInput) return;
+function safeEvaluate(expression) {
   try {
-    // Replace operators for JS eval
-    const sanitized = currentInput
-      .replace(/×/g, "*")
-      .replace(/÷/g, "/")
-      .replace(/−/g, "-")
-      .replace(/\^/g, "**");
-    const result = eval(sanitized);
-    const timestamp = new Date().toLocaleTimeString();
-    history.push({ expression: currentInput, result, time: timestamp });
-    currentInput = result.toString();
-    historyIndex = history.length;
-    updateDisplay();
+    const normalized = normalizeExpression(expression);
+    const result = Function(`"use strict"; return (${normalized})`)();
+    return Number.isFinite(result) ? result : null;
   } catch {
-    currentInput = "";
-    display.value = "Error";
+    return null;
   }
 }
 
-function showHistory() {
-  alert("History coming soon!");
+function addToHistory(expression, result) {
+  history.push({
+    expression,
+    result,
+    time: new Date().toLocaleTimeString()
+  });
+  historyIndex = history.length;
+  renderHistory();
 }
 
-// ============================
-// BUTTON EVENT LISTENERS
-// ============================
+function renderHistory() {
+  historyBox.innerHTML = `<h3 style="margin-bottom:12px;">History</h3>`;
 
-// Numbers
-document.querySelectorAll(".number").forEach(btn => {
-  btn.addEventListener("click", () => handleNumber(btn.textContent));
+  if (!history.length) {
+    historyBox.innerHTML += `<p>No calculations yet</p>`;
+    return;
+  }
+
+  history
+    .slice()
+    .reverse()
+    .forEach(item => {
+      const row = document.createElement("div");
+      row.style.cssText = `
+        padding: 10px;
+        border-bottom: 1px solid #333;
+        cursor: pointer;
+      `;
+
+      row.innerHTML = `
+        <div>${item.expression} = <strong>${item.result}</strong></div>
+        <small style="opacity:.6">${item.time}</small>
+      `;
+
+      row.onclick = () => {
+        currentInput = String(item.result);
+        updateDisplay(currentInput);
+        closeHistory();
+      };
+
+      historyBox.appendChild(row);
+    });
+}
+
+function openHistory() {
+  historyOverlay.style.display = "flex";
+  historyOpen = true;
+}
+
+function closeHistory() {
+  historyOverlay.style.display = "none";
+  historyOpen = false;
+}
+
+/* =========================
+   BUTTON INPUT
+========================= */
+buttons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.classList.contains("number") || btn.classList.contains("operator")) {
+      currentInput += btn.textContent;
+      updateDisplay(currentInput);
+    }
+  });
 });
 
-// Operators
-document.querySelectorAll(".operator").forEach(btn => {
-  btn.addEventListener("click", () => handleOperator(btn.textContent));
+/* =========================
+   CLEAR
+========================= */
+clearBtn.addEventListener("click", () => {
+  currentInput = "";
+  updateDisplay("0");
 });
 
-// Equal
-document.querySelector(".equal").addEventListener("click", handleEqual);
+/* =========================
+   BACKSPACE
+========================= */
+backspaceBtn.addEventListener("click", () => {
+  currentInput = currentInput.slice(0, -1);
+  updateDisplay(currentInput);
+});
 
-// Clear
-document.querySelector(".clear").addEventListener("click", handleClear);
+/* =========================
+   EQUALS
+========================= */
+equalBtn.addEventListener("click", () => {
+  if (!currentInput) return;
 
-// Backspace
-document.querySelector(".backspace").addEventListener("click", handleBackspace);
+  const result = safeEvaluate(currentInput);
 
-// History
-document.querySelector(".history").addEventListener("click", showHistory);
+  if (result === null) {
+    updateDisplay("Error");
+    currentInput = "";
+    return;
+  }
 
-// ============================
-// KEYBOARD SUPPORT
-// ============================
-document.addEventListener("keydown", e => {
+  addToHistory(currentInput, result);
+  currentInput = String(result);
+  updateDisplay(currentInput);
+});
+
+/* =========================
+   HISTORY BUTTON
+========================= */
+historyBtn.addEventListener("click", () => {
+  historyOpen ? closeHistory() : openHistory();
+});
+
+historyOverlay.addEventListener("click", (e) => {
+  if (e.target === historyOverlay) closeHistory();
+});
+
+/* =========================
+   KEYBOARD SUPPORT
+========================= */
+document.addEventListener("keydown", (e) => {
   const key = e.key;
 
-  if (!isNaN(key) || key === ".") handleNumber(key);
-  else if (key === "Enter") handleEqual();
-  else if (key === "Escape") handleClear();
-  else if (["+", "-", "*", "/", "%", "^"].includes(key)) handleOperator(key);
+  if (!isNaN(key) || ".+-*/%^".includes(key)) {
+    e.preventDefault();
 
-  // Arrow keys for history (placeholder)
-  else if (key === "ArrowUp") {
-    if (history.length === 0) return;
+    const mapped =
+      key === "*" ? "×" :
+      key === "/" ? "÷" :
+      key === "-" ? "−" : key;
+
+    currentInput += mapped;
+    updateDisplay(currentInput);
+  }
+
+  if (key === "Enter") {
+    e.preventDefault();
+    equalBtn.click();
+  }
+
+  if (key === "Backspace") {
+    e.preventDefault();
+    backspaceBtn.click();
+  }
+
+  if (key === "Escape") {
+    historyOpen ? closeHistory() : clearBtn.click();
+  }
+
+  if (key === "ArrowUp" && history.length) {
     historyIndex = Math.max(0, historyIndex - 1);
-    currentInput = history[historyIndex].expression || "";
-    updateDisplay();
-  } else if (key === "ArrowDown") {
-    if (history.length === 0) return;
+    updateDisplay(history[historyIndex]?.expression || "");
+  }
+
+  if (key === "ArrowDown" && history.length) {
     historyIndex = Math.min(history.length - 1, historyIndex + 1);
-    currentInput = history[historyIndex]?.expression || "";
-    updateDisplay();
+    updateDisplay(history[historyIndex]?.expression || "");
   }
 });
